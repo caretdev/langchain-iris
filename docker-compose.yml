@@ -1,0 +1,15 @@
+version: "3"
+services:
+  iris:
+    image: intersystemsdc/iris-community:2023.3-zpm
+    ports:
+      - 6172:1972
+      - 6173:52773
+    environment:
+      - IRISUSERNAME=test
+      - IRISPASSWORD=test
+      - IRISNAMESPACE=TEST
+    working_dir: /home/irisowner/langchain-iris
+    volumes:
+      - ./init.sh:/docker-entrypoint-initdb.d/init.sh
+      - ./:/home/irisowner/langchain-iris

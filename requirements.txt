@@ -1,0 +1,2 @@
+langchain==0.0.348
+sqlalchemy-iris>=0.12.0
