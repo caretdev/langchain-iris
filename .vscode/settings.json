@@ -1,0 +1,10 @@
+{
+  "objectscript.conn": {
+    "active": true,
+    "host": "localhost",
+    "port": 6172,
+    "ns": "TEST",
+    "username": "test",
+    "password": "test"
+  }
+}

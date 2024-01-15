@@ -1,0 +1,102 @@
+# This workflow will upload a Python Package using Twine when a release is created
+# For more information see: https://help.github.com/en/actions/language-and-framework-guides/using-python-with-github-actions#publishing-to-package-registries
+
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+
+name: Upload Python Package
+
+on:
+  release:
+    types: [published]
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - intersystemsdc/iris-community:2023.3-zpm
+          - intersystemsdc/iris-community:latest
+          - intersystemsdc/iris-community:preview
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    - name: Install requirements
+      run: |
+        pip install -r requirements-dev.txt \
+                    -e .
+    - name: Run Tests
+      run: |
+        pytest --container ${{ matrix.image }}
+
+  deploy:
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/langchain-iris
+    permissions:
+      id-token: write
+      contents: write
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-tags: github.event_name == 'push'
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    - name: Set version
+      id: set-version
+      run: |
+        VERSION=$(grep version setup.cfg | cut -d=  -f2 | tr -d '[:blank:]')
+        [ $GITHUB_EVENT_NAME == 'push' ] && VERSION+=b && VERSION+=$(($(git tag -l "*$VERSION*" | cut -db -f2 | sort -n | tail -1)+1))
+        [ $GITHUB_EVENT_NAME == 'release' ] && VERSION=${{ github.event.release.tag_name }} && VERSION=${VERSION/v/}
+        echo VERSION = $VERSION
+        sed -ie "s/version = .*/version = $VERSION/" setup.cfg
+        echo version=$VERSION >> $GITHUB_OUTPUT
+        NAME="langchain_iris"-${VERSION}-py3-none-any
+        echo name=$NAME >> $GITHUB_OUTPUT
+    - name: Install requirements
+      run: |
+        python -m pip install --upgrade pip
+        pip install build -e .
+    - name: Build Python package
+      run: python -m build
+    - name: Publish package
+      uses: pypa/gh-action-pypi-publish@release/v1
+    - name: Create Beta Release
+      id: create_release
+      if: github.event_name == 'push'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ steps.set-version.outputs.version }}
+        prerelease: ${{ github.event_name != 'release' }}
+        files: dist/${{ steps.set-version.outputs.name }}.whl
+    - uses: actions/checkout@v3
+      if: github.event_name == 'release'
+      with:
+        ref: main
+    - name: Bump version
+      if: github.event_name == 'release'
+      run: |
+        git config --global user.name 'ProjectBot'
+        git config --global user.email 'bot@users.noreply.github.com'
+        VERSION=${{ github.event.release.tag_name }} && VERSION=${VERSION/v/}
+        VERSION=`echo $VERSION | awk -F. '/[0-9]+\./{$NF++;print}' OFS=.`
+        sed -ie "s/version = .*/version = $VERSION/" setup.cfg
+        git add setup.cfg
+        git commit -m 'auto bump version with release'
+        git push
