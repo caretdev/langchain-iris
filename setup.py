@@ -13,7 +13,7 @@ if os.path.isfile(requirementPath):
 
 setup(
     packages=find_namespace_packages(
-        include=["langchain-iris", "langchain-iris.*"]
+        include=["langchain_iris", "langchain_iris.*"]
     ),
     include_package_data=True,
     install_requires=requirements,
