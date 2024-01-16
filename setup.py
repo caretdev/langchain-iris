@@ -1,21 +1,13 @@
 #!/usr/bin/env python
 from setuptools import find_namespace_packages, setup
-import os
-
-thelibFolder = os.path.dirname(os.path.realpath(__file__))
-requirementPath = thelibFolder + "/requirements.txt"
-
-requirements = []
-if os.path.isfile(requirementPath):
-    with open("./requirements.txt") as f:
-        for line in f.read().splitlines():
-            requirements.append(line)
 
 setup(
     packages=find_namespace_packages(
         include=["langchain_iris", "langchain_iris.*"]
     ),
-    include_package_data=True,
-    install_requires=requirements,
+    install_requires=[
+        "langchain==0.0.348",
+        "sqlalchemy-iris>=0.12.0",
+    ],
     python_requires=">3.7,<3.12",
 )

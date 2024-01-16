@@ -52,8 +52,6 @@ jobs:
       contents: write
     steps:
     - uses: actions/checkout@v4
-      with:
-        fetch-tags: github.event_name == 'push'
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
@@ -61,6 +59,7 @@ jobs:
     - name: Set version
       id: set-version
       run: |
+        git fetch --prune --unshallow --tags
         VERSION=$(grep version setup.cfg | cut -d=  -f2 | tr -d '[:blank:]')
         [ $GITHUB_EVENT_NAME == 'push' ] && VERSION+=b && VERSION+=$(($(git tag -l "*$VERSION*" | cut -db -f2 | sort -n | tail -1)+1))
         [ $GITHUB_EVENT_NAME == 'release' ] && VERSION=${{ github.event.release.tag_name }} && VERSION=${VERSION/v/}
