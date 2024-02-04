@@ -185,6 +185,39 @@ def test_irisvector_delete_docs(collection_name, connection_string) -> None:
         assert sorted(record.id for record in records) == []  # type: ignore
 
 
+def test_irisvector_delete_docs_uuid(collection_name, connection_string) -> None:
+    """Add and delete documents."""
+    texts = ["foo", "bar", "baz"]
+    metadatas = [{"page": str(i)} for i in range(len(texts))]
+    docsearch = IRISVector.from_texts(
+        texts=texts,
+        collection_name=collection_name,
+        embedding=FakeEmbeddings(),
+        metadatas=metadatas,
+        connection_string=connection_string,
+        pre_delete_collection=True,
+    )
+
+    output = docsearch.get()
+    ids = output["ids"]
+
+    # delete as one ID
+    docsearch.delete(ids[0])
+    with docsearch._make_session() as session:
+        records = list(session.query(docsearch.table).all())
+        assert sorted(record.id for record in records) == ids[1:]  # type: ignore
+
+    docsearch.delete(ids[0:2])
+    with docsearch._make_session() as session:
+        records = list(session.query(docsearch.table).all())
+        assert sorted(record.id for record in records) == [ids[2]]  # type: ignore
+
+    docsearch.delete(ids[1:])  # Should not raise on missing ids
+    with docsearch._make_session() as session:
+        records = list(session.query(docsearch.table).all())
+        assert sorted(record.id for record in records) == []  # type: ignore
+
+
 def test_irisvector_relevance_score(collection_name, connection_string) -> None:
     """Test to make sure the relevance score is scaled to 0-1."""
     texts = ["foo", "bar", "baz"]

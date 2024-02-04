@@ -539,7 +539,10 @@ LANGUAGE OBJECTSCRIPT
                     "Trying to delete vectors by ids (represented by the model "
                     "using the custom ids field)"
                 )
-                stmt = delete(self.table).where(self.table.c.id.in_(ids))
+                if not isinstance(ids, list) and not isinstance(ids, tuple):
+                    stmt = delete(self.table).where(self.table.c.id == ids)
+                else:
+                    stmt = delete(self.table).where(self.table.c.id.in_(ids))
                 session.execute(stmt)
             session.commit()
 
