@@ -8,7 +8,7 @@ import pytest
 from langchain.docstore.document import Document
 from sqlalchemy.orm import Session
 
-from langchain_iris import IRISVector, DistanceStrategy
+from langchain_iris import IRISVector
 from langchain.embeddings.fake import DeterministicFakeEmbedding
 
 
@@ -138,7 +138,7 @@ def test_irisvector_with_filter_distant_match(
     )
     output = docsearch.similarity_search_with_score("foo", k=1, filter={"page": "2"})
     assert output == [
-        (Document(page_content="baz", metadata={"page": "2"}), 0.0013003906671379406)
+        (Document(page_content="baz", metadata={"page": "2"}), 0.001300390667138)
     ]
 
 
@@ -232,13 +232,10 @@ def test_irisvector_relevance_score(collection_name, connection_string) -> None:
     )
 
     output = docsearch.similarity_search_with_relevance_scores("foo", k=3)
-    print([[doc.page_content, score] for doc, score in output])
-    # [1.0, 0.07647878038412692, -0.10694835587301355]
-    # [1.0, 0.07647878038412692, -0.10694835587301355]
     assert output == [
         (Document(page_content="foo", metadata={"page": "0"}), 1.0),
-        (Document(page_content="bar", metadata={"page": "1"}), 0.9996744261675065),
-        (Document(page_content="baz", metadata={"page": "2"}), 0.9986996093328621),
+        (Document(page_content="bar", metadata={"page": "1"}), 0.999674426167506),
+        (Document(page_content="baz", metadata={"page": "2"}), 0.998699609332862),
     ]
 
 

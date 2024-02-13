@@ -1,7 +1,8 @@
 version: "3"
 services:
   iris:
-    image: intersystemsdc/iris-community:2023.3-zpm
+    # image: intersystemsdc/iris-community:2023.3-zpm
+    image: caretdev/iris-community:2024.1-vecdb
     ports:
       - 6172:1972
       - 6173:52773

@@ -40,6 +40,7 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy_iris import IRISListBuild
+from sqlalchemy_iris import IRISVector as IRISVectorType
 
 from sqlalchemy.orm import Session
 
@@ -75,10 +76,13 @@ Base = declarative_base()
 
 class IRISVector(VectorStore):
     _conn = None
+    native_vector = False
+    native_vector_cosine_similarity = False
 
     def __init__(
         self,
         embedding_function: Embeddings,
+        dimension: int,
         connection_string: Optional[str] = None,
         collection_name: str = _LANGCHAIN_DEFAULT_COLLECTION_NAME,
         pre_delete_collection: bool = False,
@@ -91,6 +95,7 @@ class IRISVector(VectorStore):
     ) -> None:
         self.connection_string = connection_string or "iris+emb:///"
         self.embedding_function = embedding_function
+        self.dimension = dimension
         self.collection_name = collection_name
         self.pre_delete_collection = pre_delete_collection
         self.collection_metadata = collection_metadata
@@ -113,6 +118,8 @@ class IRISVector(VectorStore):
         self.create_vector_functions()
 
     def create_vector_functions(self) -> None:
+        if self.native_vector:
+            return
         try:
             with Session(self._conn) as session:
                 session.execute(
@@ -188,6 +195,19 @@ LANGUAGE OBJECTSCRIPT
 
     @property
     def distance_strategy(self) -> str:
+        if self.native_vector:
+            if self._distance_strategy == DistanceStrategy.COSINE:
+                return self.table.c.embedding.cosine
+            elif self._distance_strategy == DistanceStrategy.MAX_INNER_PRODUCT:
+                return self.table.c.embedding.max_inner_product
+            # elif self._distance_strategy == DistanceStrategy.EUCLIDEAN:
+            #     return "langchain_l2_distance"
+            else:
+                raise ValueError(
+                    f"Got unexpected value for distance: {self._distance_strategy}. "
+                    f"Should be one of {', '.join([ds.value for ds in DistanceStrategy])}."
+                )
+
         if self._distance_strategy == DistanceStrategy.EUCLIDEAN:
             return "langchain_l2_distance"
         elif self._distance_strategy == DistanceStrategy.COSINE:
@@ -203,6 +223,14 @@ LANGUAGE OBJECTSCRIPT
     def connect(self) -> Connection:
         engine = create_engine(self.connection_string, **self.engine_args)
         conn = engine.connect()
+        try:
+            if conn.dialect.supports_vectors:
+                self.native_vector = True
+                self.native_vector_cosine_similarity = (
+                    conn.dialect.vector_cosine_similarity
+                )
+        except:  # noqa
+            pass
         return conn
 
     def __del__(self) -> None:
@@ -220,7 +248,14 @@ LANGUAGE OBJECTSCRIPT
             self.collection_name,
             Base.metadata,
             Column("id", VARCHAR(40), primary_key=True, default=uuid.uuid4),
-            Column("embedding", IRISListBuild(16000, float)),
+            Column(
+                "embedding",
+                (
+                    IRISVectorType(self.dimension)
+                    if self.native_vector
+                    else IRISListBuild(self.dimension, float)
+                ),
+            ),
             Column("document", TEXT, nullable=True),
             Column("metadata", TEXT, nullable=True),
             extend_existing=True,
@@ -278,6 +313,13 @@ LANGUAGE OBJECTSCRIPT
                 "Consider providing relevance_score_fn to IRISVector constructor."
             )
 
+    @staticmethod
+    def _cosine_relevance_score_fn(distance: float) -> float:
+        print('_cosine_relevance_score_fn', distance)
+        """Normalize the distance to a score on a scale [0, 1]."""
+
+        return round(1.0 - distance, 15)
+
     @classmethod
     def from_embeddings(
         cls: Type[IRISVector],
@@ -299,8 +341,11 @@ LANGUAGE OBJECTSCRIPT
         texts = [t[0] for t in text_embeddings]
         embeddings = [t[1] for t in text_embeddings]
 
+        dimension = len(embeddings[0])
+
         store = cls(
             collection_name=collection_name,
+            dimension=dimension,
             distance_strategy=distance_strategy,
             embedding_function=embedding,
             pre_delete_collection=pre_delete_collection,
@@ -330,8 +375,12 @@ LANGUAGE OBJECTSCRIPT
         Return VectorStore initialized from texts and embeddings.
         """
 
+        sample_embedding = embedding.embed_query("Hello IRISVector!")
+        dimension = len(sample_embedding)
+
         store = cls(
             collection_name=collection_name,
+            dimension=dimension,
             distance_strategy=distance_strategy,
             embedding_function=embedding,
             pre_delete_collection=pre_delete_collection,
@@ -483,9 +532,13 @@ LANGUAGE OBJECTSCRIPT
             results: Sequence[Row] = (
                 session.query(
                     self.table,
-                    self.table.c.embedding.func(
-                        self.distance_strategy, embedding
-                    ).label("distance"),
+                    (
+                        self.distance_strategy(embedding).label("distance")
+                        if self.native_vector
+                        else self.table.c.embedding.func(
+                            self.distance_strategy, embedding
+                        ).label("distance")
+                    ),
                 )
                 .filter(filter_by)
                 .order_by(asc("distance"))
@@ -499,7 +552,7 @@ LANGUAGE OBJECTSCRIPT
                     page_content=result.document,
                     metadata=json.loads(result.metadata),
                 ),
-                float(result.distance) if self.embedding_function is not None else None,
+                round(float(result.distance), 15) if self.embedding_function is not None else None,
             )
             for result in results
         ]
