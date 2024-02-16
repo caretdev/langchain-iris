@@ -82,7 +82,7 @@ class IRISVector(VectorStore):
     def __init__(
         self,
         embedding_function: Embeddings,
-        dimension: int,
+        dimension: int = None,
         connection_string: Optional[str] = None,
         collection_name: str = _LANGCHAIN_DEFAULT_COLLECTION_NAME,
         pre_delete_collection: bool = False,
@@ -95,6 +95,9 @@ class IRISVector(VectorStore):
     ) -> None:
         self.connection_string = connection_string or "iris+emb:///"
         self.embedding_function = embedding_function
+        if not dimension:
+            sample_embedding = embedding_function.embed_query("Hello IRISVector!")
+            dimension = len(sample_embedding)
         self.dimension = dimension
         self.collection_name = collection_name
         self.pre_delete_collection = pre_delete_collection
@@ -315,7 +318,6 @@ LANGUAGE OBJECTSCRIPT
 
     @staticmethod
     def _cosine_relevance_score_fn(distance: float) -> float:
-        print('_cosine_relevance_score_fn', distance)
         """Normalize the distance to a score on a scale [0, 1]."""
 
         return round(1.0 - distance, 15)
@@ -375,12 +377,8 @@ LANGUAGE OBJECTSCRIPT
         Return VectorStore initialized from texts and embeddings.
         """
 
-        sample_embedding = embedding.embed_query("Hello IRISVector!")
-        dimension = len(sample_embedding)
-
         store = cls(
             collection_name=collection_name,
-            dimension=dimension,
             distance_strategy=distance_strategy,
             embedding_function=embedding,
             pre_delete_collection=pre_delete_collection,
