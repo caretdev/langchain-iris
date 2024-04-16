@@ -6,8 +6,8 @@ setup(
         include=["langchain_iris", "langchain_iris.*"]
     ),
     install_requires=[
-        "langchain==0.0.348",
+        "langchain>=0.0.348",
         "sqlalchemy-iris>=0.13.0",
     ],
-    python_requires=">3.7,<3.12",
+    python_requires=">3.7",
 )
