@@ -95,7 +95,15 @@ class IRISVector(VectorStore):
         self.logger = logger or logging.getLogger(__name__)
         self.override_relevance_score_fn = relevance_score_fn
         self.engine_args = engine_args or {}
-        self._conn = connection if connection else self.connect()
+        if connection:
+            self._conn = connection 
+            try:
+                if connection.dialect.supports_vectors:
+                    self.native_vector = True
+            except:  # noqa
+                pass
+        else: 
+            self._conn = self.connect()
 
         self.__post_init__()
 
