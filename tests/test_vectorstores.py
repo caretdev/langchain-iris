@@ -9,7 +9,7 @@ from langchain.docstore.document import Document
 from sqlalchemy.orm import Session
 
 from langchain_iris import IRISVector
-from langchain.embeddings.fake import DeterministicFakeEmbedding
+from langchain_community.embeddings import DeterministicFakeEmbedding
 
 
 class FakeEmbeddings(DeterministicFakeEmbedding):
