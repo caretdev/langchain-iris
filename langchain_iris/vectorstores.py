@@ -199,7 +199,7 @@ LANGUAGE OBJECTSCRIPT
             if self._distance_strategy == DistanceStrategy.COSINE:
                 return self.table.c.embedding.cosine
             elif self._distance_strategy == DistanceStrategy.DOT_PRODUCT:
-                return self.table.c.embedding.DOT_product
+                return self.table.c.embedding.max_inner_product
             # elif self._distance_strategy == DistanceStrategy.EUCLIDEAN:
             #     return "langchain_l2_distance"
             else:
