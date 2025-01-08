@@ -5,7 +5,7 @@ import string
 
 import pytest
 
-from langchain.docstore.document import Document
+from langchain_core.documents import Document
 from sqlalchemy.orm import Session
 
 from langchain_iris import IRISVector
@@ -13,11 +13,11 @@ from langchain_community.embeddings import DeterministicFakeEmbedding
 
 
 class FakeEmbeddings(DeterministicFakeEmbedding):
-    size = 200
+    size: int = 200
 
 
 class FakeEmbeddingsWithAdaDimension(FakeEmbeddings):
-    size = 1536
+    size: int = 1536
     """Fake embeddings functionality for testing."""
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
@@ -258,7 +258,7 @@ def test_irisvector_retriever_search_threshold(
         search_type="similarity_score_threshold",
         search_kwargs={"k": 3, "score_threshold": 0.999},
     )
-    output = retriever.get_relevant_documents("summer")
+    output = retriever.invoke("summer")
     assert output == [
         Document(page_content="foo", metadata={"page": "0"}),
         Document(page_content="bar", metadata={"page": "1"}),
@@ -286,5 +286,5 @@ def test_irisvector_retriever_search_threshold_custom_normalization_fn(
         search_type="similarity_score_threshold",
         search_kwargs={"k": 3, "score_threshold": 0.5},
     )
-    output = retriever.get_relevant_documents("foo")
+    output = retriever.invoke("foo")
     assert output == []
