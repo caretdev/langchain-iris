@@ -22,9 +22,9 @@ jobs:
       fail-fast: false
       matrix:
         image:
-          - intersystemsdc/iris-community:latest
-          - intersystemsdc/iris-community:preview
-          - intersystemsdc/iris-community:2024.1-vecdb
+          - containers.intersystems.com/intersystems/iris-community:latest-em
+          - containers.intersystems.com/intersystems/iris-community:latest-cd
+          - containers.intersystems.com/intersystems/iris-community:latest-preview
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
