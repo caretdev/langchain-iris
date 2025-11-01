@@ -1,2 +1,2 @@
 pytest
-testcontainers-iris
+testcontainers-iris>=1.3.0
