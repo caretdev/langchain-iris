@@ -1,2 +1,5 @@
 pytest
 testcontainers-iris>=1.3.0
+langchain
+langchain-community
+iris-embedded-python-wrapper
