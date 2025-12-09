@@ -529,16 +529,37 @@ LANGUAGE OBJECTSCRIPT
 
         # Execute the query and fetch the results
         with Session(self._conn) as session:
-            results: Sequence[Row] = (
+            # Create the distance column explicitly to avoid textual label reference issues
+            distance_expr = (
+                self.distance_strategy(embedding)
+                if self.native_vector
+                else self.table.c.embedding.func(
+                    self.distance_strategy, embedding
+                )
+            )
+            
+            distance_col = distance_expr.label("distance")
+            
+            # Note: For IRIS without modern pagination support, using .limit() with .order_by()
+            # doesn't include ORDER BY in the SQL (it only generates TOP N).
+            # So we fetch all results ordered and limit in Python.
+            query = (
                 session.query(
                     self.table,
-                    distance_expr,
+                    distance_col,
                 )
                 .filter(filter_by)
                 .order_by(distance_expr)
-                .limit(k)
-                .all()
             )
+            
+            # Only add limit to SQL if dialect supports modern pagination
+            if self._conn.dialect.supports_modern_pagination:
+                query = query.limit(k)
+                results: Sequence[Row] = query.all()
+            else:
+                # For legacy pagination, fetch all and limit in Python
+                all_results = query.all()
+                results = all_results[:k]
 
         documents_with_scores = [
             (
