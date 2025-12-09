@@ -288,3 +288,36 @@ def test_irisvector_retriever_search_threshold_custom_normalization_fn(
     )
     output = retriever.invoke("foo")
     assert output == []
+
+
+def test_irisvector_similarity_search_with_score_by_vector(
+    collection_name, connection_string
+) -> None:
+    """Regression test: order_by must use column expression, not string.
+
+    This test verifies the fix for the order_by(asc("distance")) bug where
+    SQLAlchemy requires a column expression object, not a string literal.
+    """
+    texts = ["foo", "bar", "baz"]
+    metadatas = [{"page": str(i)} for i in range(len(texts))]
+    docsearch = IRISVector.from_texts(
+        texts=texts,
+        collection_name=collection_name,
+        embedding=FakeEmbeddingsWithAdaDimension(),
+        metadatas=metadatas,
+        connection_string=connection_string,
+        pre_delete_collection=True,
+    )
+
+    # Get the embedding for "foo" and call similarity_search_with_score_by_vector directly
+    embedding = FakeEmbeddingsWithAdaDimension().embed_query("foo")
+    output = docsearch.similarity_search_with_score_by_vector(embedding=embedding, k=3)
+
+    # Verify we get results without errors and they are ordered by distance
+    assert len(output) == 3
+    # First result should be "foo" with distance 0.0 (exact match)
+    assert output[0][0].page_content == "foo"
+    assert output[0][1] == 0.0
+    # Results should be ordered by increasing distance
+    distances = [score for _, score in output]
+    assert distances == sorted(distances)

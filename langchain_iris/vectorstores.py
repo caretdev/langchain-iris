@@ -21,7 +21,6 @@ from typing import (
 from sqlalchemy import (
     Connection,
     and_,
-    asc,
     VARCHAR,
     TEXT,
     Column,
@@ -519,21 +518,24 @@ LANGUAGE OBJECTSCRIPT
 
         embedding = [float(v) for v in embedding]
 
+        # Build the distance expression for ordering
+        distance_expr = (
+            self.distance_strategy(embedding).label("distance")
+            if self.native_vector
+            else self.table.c.embedding.func(
+                self.distance_strategy, embedding
+            ).label("distance")
+        )
+
         # Execute the query and fetch the results
         with Session(self._conn) as session:
             results: Sequence[Row] = (
                 session.query(
                     self.table,
-                    (
-                        self.distance_strategy(embedding).label("distance")
-                        if self.native_vector
-                        else self.table.c.embedding.func(
-                            self.distance_strategy, embedding
-                        ).label("distance")
-                    ),
+                    distance_expr,
                 )
                 .filter(filter_by)
-                .order_by(asc("distance"))
+                .order_by(distance_expr)
                 .limit(k)
                 .all()
             )
